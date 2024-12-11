@@ -4,35 +4,71 @@ import { Todo } from './types/Todo';
 
 interface Props {
   todos: Todo[];
-  onCompleted: (todo: Todo) => void;
+  onCompleted: (todo: Omit<Todo, 'userId'>) => Promise<void>;
+  onDelete: (id: number) => Promise<void>;
   tempTodo: Todo | null;
+  loading: boolean;
+  loadingId: number | number[];
 }
 
-export const TodoList: React.FC<Props> = ({ todos, onCompleted, tempTodo }) => {
+export const TodoList: React.FC<Props> = ({
+  todos,
+  onCompleted,
+  onDelete,
+  tempTodo,
+  loading,
+  loadingId,
+}) => {
+  const handleTodoCompleted = ({ title, id, completed }: Todo) => {
+    const updatedTodo =
+      completed === false
+        ? { title, id, completed: true }
+        : { title, id, completed: false };
+
+    onCompleted(updatedTodo);
+  };
+
+  const isLoading = (id: number) => {
+    return (
+      loading &&
+      (typeof loadingId === 'number'
+        ? loadingId === id
+        : loadingId.includes(id))
+    );
+  };
+
   return (
     <section className="todoapp__main" data-cy="TodoList">
-      {todos.map(({ title, id, completed }) => (
+      {todos.map(todo => (
         <div
           data-cy="Todo"
-          className={classNames('todo', { completed })}
-          key={id}
+          className={classNames('todo', { completed: todo.completed })}
+          key={todo.id}
         >
-          <label className="todo__status-label" htmlFor={`todo-status-${id}`}>
+          <label
+            className="todo__status-label"
+            htmlFor={`todo-status-${todo.id}`}
+          >
             <input
-              id={`todo-status-${id}`}
+              id={`todo-status-${todo.id}`}
               data-cy="TodoStatus"
               type="checkbox"
               className="todo__status"
-              checked={completed}
-              onChange={() => onCompleted(todos[id])}
+              checked={todo.completed}
+              onChange={() => handleTodoCompleted(todo)}
             />
             {/* accessible text for the label */}
           </label>
 
           <span data-cy="TodoTitle" className="todo__title">
-            {title}
+            {todo.title}
           </span>
-          <button type="button" className="todo__remove" data-cy="TodoDelete">
+          <button
+            type="button"
+            className="todo__remove"
+            data-cy="TodoDelete"
+            onClick={() => onDelete(todo.id)}
+          >
             ×
           </button>
 
@@ -46,7 +82,12 @@ export const TodoList: React.FC<Props> = ({ todos, onCompleted, tempTodo }) => {
                   />
             </form>*/}
 
-          <div data-cy="TodoLoader" className="modal overlay">
+          <div
+            data-cy="TodoLoader"
+            className={classNames('modal overlay', {
+              'is-active': isLoading(todo.id),
+            })}
+          >
             <div className="modal-background has-background-white-ter" />
             <div className="loader" />
           </div>
@@ -69,7 +110,9 @@ export const TodoList: React.FC<Props> = ({ todos, onCompleted, tempTodo }) => {
               type="checkbox"
               className="todo__status"
               checked={tempTodo.completed}
-              onChange={() => onCompleted(tempTodo)}
+              onChange={() => {
+                onCompleted(tempTodo);
+              }}
             />
             {/* accessible text for the label */}
           </label>
@@ -81,7 +124,10 @@ export const TodoList: React.FC<Props> = ({ todos, onCompleted, tempTodo }) => {
             ×
           </button>
 
-          <div data-cy="TodoLoader" className="modal overlay">
+          <div
+            data-cy="TodoLoader"
+            className={classNames('modal overlay', { 'is-active': loading })}
+          >
             <div className="modal-background has-background-white-ter" />
             <div className="loader" />
           </div>

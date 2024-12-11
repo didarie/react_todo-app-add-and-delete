@@ -15,8 +15,9 @@ export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<TodoFilter>(TodoFilter.All);
-  const [completedTodo, setCompletedTodo] = useState<Todo | null>(null);
   const [tempTodo, setTempTodo] = useState<Todo | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingId, setLoadingId] = useState<number | number[]>(0);
 
   // #region loadTodos
   async function loadTodos() {
@@ -57,7 +58,7 @@ export const App: React.FC = () => {
 
   const completedTodos = useMemo(() => {
     return todos.filter(todo => todo.completed);
-  }, [todos, completedTodo]);
+  }, [todos]);
 
   if (!USER_ID) {
     return <UserWarning />;
@@ -65,13 +66,68 @@ export const App: React.FC = () => {
 
   // #endregion
 
-  function addTodo({ title, userId, id, completed }: Todo) {
-    return todoServices
-      .addTodo({ title, userId, id, completed })
-      .then(() =>
-        setTodos(prevTodos => [...prevTodos, { title, userId, id, completed }]),
+  const addTodo = async (newTodo: Todo) => {
+    setLoading(true);
+
+    setLoadingId(newTodo.id);
+    try {
+      const addedTodo: Todo[] = await todoServices.addTodo(newTodo);
+
+      setTodos(prevTodos => [...prevTodos].concat(addedTodo));
+    } finally {
+      setTempTodo(null);
+      setLoading(false);
+    }
+  };
+
+  const deleteTodo = async (id: number | number[]) => {
+    setLoading(true);
+
+    const ids = Array.isArray(id) ? id : [id];
+
+    setLoadingId(ids);
+
+    try {
+      const deletePromise = ids.map(async i => {
+        try {
+          await todoServices.deleteTodo(i);
+
+          return i;
+        } catch {
+          setError('Unable to delete a todo');
+
+          return null;
+        }
+      });
+      const results = await Promise.all(deletePromise);
+
+      const successDelete = results.filter(result => result !== null);
+
+      setTodos(todos.filter(todo => !successDelete.includes(todo.id)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateTodo = async ({ title, id, completed }: Omit<Todo, 'userId'>) => {
+    setLoading(true);
+    setLoadingId(id);
+    try {
+      const updatedTodo = await todoServices.updatedTodo({
+        title,
+        id,
+        completed,
+      });
+
+      setTodos(prevTodos =>
+        prevTodos.map(todo => (todo.id === id ? updatedTodo : todo)),
       );
-  }
+    } catch {
+      setError('Unable to update a todo');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="todoapp">
@@ -92,9 +148,11 @@ export const App: React.FC = () => {
 
           {/* Add a todo on form submit */}
           <TodoForm
+            todos={todos}
             onError={setError}
             onSubmit={addTodo}
             onTempTodo={setTempTodo}
+            loading={loading}
           />
         </header>
 
@@ -103,15 +161,20 @@ export const App: React.FC = () => {
         {todos.length > 0 && (
           <TodoList
             todos={filteredTodos}
-            onCompleted={setCompletedTodo}
+            onCompleted={updateTodo}
             tempTodo={tempTodo}
+            onDelete={deleteTodo}
+            loading={loading}
+            loadingId={loadingId}
           />
         )}
 
         {todos.length > 0 && (
           <TodoFooter
+            completedTodos={completedTodos}
             filter={filter}
             onChange={setFilter}
+            onDelete={deleteTodo}
             activeItems={todos.length - completedTodos.length}
           />
         )}

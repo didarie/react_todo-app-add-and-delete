@@ -1,16 +1,21 @@
 import classNames from 'classnames';
 import React from 'react';
+import { Todo } from './types/Todo';
 import { TodoFilter } from './types/TodoFilter';
 
 interface Props {
+  completedTodos: Todo[] | [];
   filter: string;
   onChange: (filter: TodoFilter) => void;
+  onDelete: (arrayId: number[]) => Promise<void>;
   activeItems: number;
 }
 
 export const TodoFooter: React.FC<Props> = ({
+  completedTodos,
   filter,
   onChange,
+  onDelete,
   activeItems,
 }) => {
   return (
@@ -41,6 +46,8 @@ export const TodoFooter: React.FC<Props> = ({
         type="button"
         className="todoapp__clear-completed"
         data-cy="ClearCompletedButton"
+        disabled={completedTodos.length === 0}
+        onClick={() => onDelete(completedTodos.map(todo => todo.id))}
       >
         Clear completed
       </button>

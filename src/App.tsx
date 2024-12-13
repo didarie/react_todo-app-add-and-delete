@@ -20,7 +20,7 @@ export const App: React.FC = () => {
   const [loadingId, setLoadingId] = useState<number | number[]>(0);
 
   // #region loadTodos
-  async function loadTodos() {
+  const loadTodos = async () => {
     try {
       const loadedTodos = await getTodos();
 
@@ -28,7 +28,7 @@ export const App: React.FC = () => {
     } catch {
       setError('Unable to load todos');
     }
-  }
+  };
 
   useEffect(() => {
     loadTodos();
